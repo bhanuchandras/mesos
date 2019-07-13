@@ -1,0 +1,78 @@
+---
+- hosts: all
+  gather_facts: yes
+  become: yes
+  tasks:
+  - name: Add mesosphere repo
+    yum: 
+      name: http://repos.mesosphere.io/el/7/noarch/RPMS/mesosphere-el-repo-7-1.noarch.rpm 
+      state: present
+
+  - name: install mesos
+    yum: 
+      name: mesos  
+      state: latest
+
+  - name: copy hostname
+    copy:
+      src: ./zk_master.txt
+      dest: /etc/mesos/zk
+
+- hosts: master
+  gather_facts: yes
+  become: yes
+  tasks:
+  - name: install Marathon
+    yum: 
+      name: marathon
+      state: present
+  - name: install mesosphere zookeeper
+    yum: 
+      name: mesosphere-zookeeper
+      state: present
+
+  - name: copy mesos master config
+    copy:
+      src: ./master_ip.txt
+      dest: /etc/mesos-master/hostname
+
+  - name: copy marathon config
+    copy:
+      src: ./marathon.txt
+      dest: /etc/default/marathon
+
+  - name: start zookeeper 
+    service:
+      name: zookeeper
+      state: started
+
+  - name: start mesos master
+    service:
+      name: mesos-master
+      state: started
+
+  - name: start marathon
+    service:
+      name: marathon
+      state: started
+
+- hosts: slave
+  gather_facts: yes
+  become: yes
+  tasks:
+  - name: copy file
+    copy: 
+      dest: /etc/mesos-slave/containerizers
+      content: |
+              mesos
+
+  - name: copy files
+    copy:
+      dest: /etc/mesos-slave/executor_registration_timeout
+      content: |
+              5mins
+
+  - name: start mesos slave
+    service:
+      name: mesos-slave
+      state: started
